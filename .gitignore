@@ -5,3 +5,8 @@ data/*
 !data/sample/
 models/
 *.egg-info/
+
+# Personal application/interview prep -- pitch script, form-field drafts,
+# panel-prep answers. For the submitter's own use, not for the reviewing
+# panel to find sitting in the repo they're evaluating.
+application/

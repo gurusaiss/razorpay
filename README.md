@@ -54,8 +54,6 @@ docs/
   METRICS.md       Baseline numbers + the Phase 7 holdout experiment result.
   ARCHITECTURE.md  Module map, design boundaries, stated limitations,
                    and other approaches considered but not built.
-  PANEL_PREP.md    Grounded answers to the questions a review panel is
-                   likely to ask, each traced to a real file or number.
 dashboard/         The two live demo pages linked above (self-contained HTML).
 src/nirantar/      All source (see docs/ARCHITECTURE.md for the module map).
 tests/             Regression tests -- run both before trusting any change.
@@ -70,9 +68,11 @@ data/sample/       150-row sample of generate.py's output, for a first look
 
 Verified end-to-end from a completely clean clone: fresh `git clone`, a new
 `venv`, `pip install -r requirements.txt`, then every command below in
-order, with no other setup -- **1m41s total**, reproducing the numbers in
+order, with no other setup -- **2m00s total**, reproducing the numbers in
 `docs/METRICS.md` byte-for-byte (same seed, deterministic). No API keys,
-no database, no manual steps.
+no database, no manual steps. (Re-timed after adding
+`tests/test_model_determinism.py` -- it was 1m41s with two test files,
+2m00s with three; re-verify this number if the test suite grows further.)
 
 ```bash
 pip install -r requirements.txt   # or: pip install scikit-learn pandas joblib numpy --break-system-packages
@@ -99,6 +99,7 @@ python -m nirantar.experiment --seed 7 --mandates 4000 --months 12
 # 5. Run the test suite.
 python tests/test_rng_isolation.py
 python tests/test_policy_and_notify.py
+python tests/test_model_determinism.py
 ```
 
 ## Known limitations
@@ -116,7 +117,7 @@ python tests/test_policy_and_notify.py
   `TOKEN_REISSUED`, `MANDATE_PAUSED`) never occur at the attempt level in
   this synthetic build — they're modelled as mandate-state events instead.
 - One seed evaluated so far (`seed=7`); the determinism and holdout-integrity
-  checks are seed-independent, but the specific +0.54pp lift number is one
+  checks are seed-independent, but the specific +0.99pp lift number is one
   measured run, not yet a confidence interval across seeds.
 - The LLM notification path (`notify.py`) is untested against a real API
   key in this environment — only its template fallback is exercised by the
@@ -126,8 +127,10 @@ Full detail on all of the above: `docs/ARCHITECTURE.md`.
 
 ## Status
 
-Phases 1-8 of the build plan are complete (taxonomy/config, synthetic
-generator, baseline metrics, calibrated predictor, decline-cause
-classifier + policy engine + coordination lock, notification composer,
-the holdout experiment, and edge-case tests). Phase 9 (this README,
-`docs/ARCHITECTURE.md`, and the pitch/demo materials) is in progress.
+Complete: taxonomy/config, synthetic generator, baseline metrics,
+calibrated predictor, decline-cause classifier, policy engine +
+coordination lock, notification composer, the holdout experiment,
+edge-case and determinism tests, both live dashboards, and this
+documentation set. A repo audit after the initial build found and fixed
+three real bugs along the way (full history in `docs/METRICS.md`) rather
+than shipping the first version that ran without crashing.

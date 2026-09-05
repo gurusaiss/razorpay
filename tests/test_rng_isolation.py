@@ -82,14 +82,22 @@ def main():
             if da[field] != db[field]:
                 mismatches.append((a.attempt_id, field, da[field], db[field]))
 
-    treated = [a for a in attempts_b if a.mandate_id not in control_ids]
-    held = sum(1 for a in treated if a.intervention_action == "HOLD" or
-               any(1 for c in range(12)))  # placeholder, real check below
+    treatment_ids = {m.mandate_id for m in mandates_b if m.arm == "treatment"}
+    assert treatment_ids, "treatment arm is empty -- test is vacuous"
 
-    n_holds_applied = sum(
-        1 for m in mandates_b if m.arm == "treatment"
-    )  # just sanity that treatment arm is non-empty
-    assert n_holds_applied > 0, "treatment arm is empty -- test is vacuous"
+    # aggressive_policy HOLDs every odd cycle for every treatment mandate --
+    # HOLD's contract (simulate.py) is "no attempt at all this cycle," so a
+    # real regression check is that no odd-cycle attempt record exists at
+    # all for any treatment mandate, not just that the policy was consulted.
+    odd_cycle_attempts = [
+        a for a in attempts_b
+        if a.mandate_id in treatment_ids and a.cycle_index % 2 == 1
+    ]
+    assert not odd_cycle_attempts, (
+        f"found {len(odd_cycle_attempts)} attempt(s) on a HOLD-ed odd cycle "
+        f"for a treatment mandate -- HOLD is supposed to skip the attempt "
+        f"entirely, e.g. {odd_cycle_attempts[0].attempt_id!r}"
+    )
 
     if mismatches:
         print(f"FAIL: {len(mismatches)} control-arm field mismatches. First 5:")
@@ -101,6 +109,8 @@ def main():
           f"between policy_fn=None and an aggressive HOLD/RETIME policy "
           f"on the treatment arm ({len(control_ids)} control mandates, "
           f"{len(mandates_a) - len(control_ids)} treatment mandates).")
+    print("PASS: no attempt record exists for any HOLD-ed odd cycle "
+          "on a treatment mandate (HOLD skips the attempt entirely).")
 
 
 if __name__ == "__main__":
