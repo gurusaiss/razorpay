@@ -118,7 +118,16 @@ def simulate_attempt(
 
     base_fail_prob = (1 - liq) * 0.55 + 0.04
 
-    downtime = rail == "UPI_AUTOPAY" and bank_psp_downtime(bank, psp_app, hour, seed_key)
+    # bank_psp_downtime is keyed on (bank, psp_app, seed_key); psp_app is ""
+    # for non-UPI rails (population.py), so this becomes a bank-only outage
+    # window for those rails -- a real e-NACH/card-emandate processing
+    # outage on the bank's side, independent of any PSP app. Deliberately
+    # NOT gated to rail == "UPI_AUTOPAY": that gate used to make
+    # BANK_TECHNICAL_ERROR unreachable dead code below (found via code
+    # review while auditing SPLIT_AMOUNT for the same class of gap -- see
+    # docs/METRICS.md's bug history), since downtime could only ever be
+    # True for UPI Autopay, where the cause is always PSP_APP_UNAVAILABLE.
+    downtime = bank_psp_downtime(bank, psp_app, hour, seed_key)
     if downtime:
         base_fail_prob = max(base_fail_prob, 0.85)
 

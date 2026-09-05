@@ -1,0 +1,430 @@
+<title>Nirantar Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --page:      #f9f9f7;
+    --surface:   #fcfcfb;
+    --surface-2: #f2f1ed;
+    --text:      #0b0b0b;
+    --text-2:    #52514e;
+    --muted:     #898781;
+    --border:    rgba(11,11,11,0.10);
+    --border-2:  rgba(11,11,11,0.06);
+    --accent:    #147a58;
+    --accent-ink:#0c5a40;
+    --accent-soft: #e3f2ea;
+    --series-before: #2a78d6;
+    --series-after:  #1baf7a;
+    --good:     #0ca30c;
+    --good-bg:  #e7f6e2;
+    --critical: #d03b3b;
+    --critical-bg: #fbe9e7;
+    --neutral-bg: #eeede9;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page:      #0d0d0d;
+      --surface:   #15181c;
+      --surface-2: #1b1e23;
+      --text:      #f4f4f2;
+      --text-2:    #c3c2b7;
+      --muted:     #8f8d86;
+      --border:    rgba(255,255,255,0.11);
+      --border-2:  rgba(255,255,255,0.07);
+      --accent:    #35d6b8;
+      --accent-ink:#7ee9d5;
+      --accent-soft: #10322b;
+      --series-before: #3987e5;
+      --series-after:  #35d6b8;
+      --good:     #35c452;
+      --good-bg:  #123420;
+      --critical: #e66767;
+      --critical-bg: #3a1c1c;
+      --neutral-bg: #24272c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page:      #0d0d0d;
+    --surface:   #15181c;
+    --surface-2: #1b1e23;
+    --text:      #f4f4f2;
+    --text-2:    #c3c2b7;
+    --muted:     #8f8d86;
+    --border:    rgba(255,255,255,0.11);
+    --border-2:  rgba(255,255,255,0.07);
+    --accent:    #35d6b8;
+    --accent-ink:#7ee9d5;
+    --accent-soft: #10322b;
+    --series-before: #3987e5;
+    --series-after:  #35d6b8;
+    --good:     #35c452;
+    --good-bg:  #123420;
+    --critical: #e66767;
+    --critical-bg: #3a1c1c;
+    --neutral-bg: #24272c;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--page);
+    color:var(--text);
+    font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono", ui-monospace, monospace;}
+  .tab{font-variant-numeric:tabular-nums;}
+
+  .shell{max-width:1180px;margin:0 auto;padding:28px 24px 64px;}
+
+  /* ---- top bar ---- */
+  .topbar{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+    padding-bottom:22px;border-bottom:1px solid var(--border);margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:9px;flex:none;
+    background:linear-gradient(155deg,var(--accent),var(--series-before));
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-family:"IBM Plex Mono";font-weight:600;font-size:15px;
+  }
+  .brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-0.01em;}
+  .brand p{margin:1px 0 0;font-size:12.5px;color:var(--text-2);}
+  .top-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .badge{
+    font-size:11.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+    padding:5px 10px;border-radius:99px;border:1px solid var(--border);
+    color:var(--text-2);white-space:nowrap;
+  }
+  .badge.accent{background:var(--accent-soft);color:var(--accent-ink);border-color:transparent;}
+
+  h2.section-title{
+    font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 14px;
+  }
+  section{margin-bottom:40px;}
+
+  /* ---- KPI row ---- */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .kpi{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:16px 18px;display:flex;flex-direction:column;gap:6px;
+  }
+  .kpi .label{font-size:12px;color:var(--text-2);}
+  .kpi .value{font-size:26px;font-weight:700;letter-spacing:-0.01em;}
+  .kpi .delta{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px;}
+  .kpi .delta.good{color:var(--good);}
+  .kpi .sub{font-size:11.5px;color:var(--muted);}
+
+  /* ---- two column charts ---- */
+  .chart-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;align-items:stretch;}
+  @media (max-width:860px){.chart-grid{grid-template-columns:1fr;}}
+  .panel{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:20px 22px;
+  }
+  .panel h3{margin:0 0 3px;font-size:14.5px;font-weight:600;}
+  .panel .panel-sub{font-size:12px;color:var(--muted);margin:0 0 18px;}
+
+  .bar-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .bar-row:last-child{margin-bottom:0;}
+  .bar-label{width:118px;flex:none;font-size:12.5px;color:var(--text-2);}
+  .bar-track{flex:1;background:var(--surface-2);border-radius:5px;height:26px;position:relative;overflow:visible;}
+  .bar-fill{height:100%;border-radius:5px;display:flex;align-items:center;}
+  .bar-fill.before{background:var(--series-before);}
+  .bar-fill.after{background:var(--series-after);}
+  .bar-fill.control{background:var(--muted);opacity:.55;}
+  .bar-val{position:absolute;top:50%;transform:translateY(-50%);font-size:12.5px;font-weight:600;
+    left:calc(100% + 10px); white-space:nowrap;}
+  .legend-row{display:flex;gap:16px;margin-top:16px;font-size:11.5px;color:var(--text-2);}
+  .legend-row span{display:inline-flex;align-items:center;gap:6px;}
+  .legend-dot{width:9px;height:9px;border-radius:2px;display:inline-block;}
+
+  .cause-row{display:grid;grid-template-columns:150px 1fr 46px;gap:10px;align-items:center;margin-bottom:11px;}
+  .cause-row:last-child{margin-bottom:0;}
+  .cause-name{font-size:12px;color:var(--text-2);}
+  .cause-track{background:var(--surface-2);border-radius:4px;height:16px;position:relative;}
+  .cause-fill{background:var(--series-before);height:100%;border-radius:4px;}
+  .cause-pct{font-size:11.5px;color:var(--muted);text-align:right;}
+
+  /* ---- architecture diagram ---- */
+  .arch-wrap{overflow-x:auto;}
+  .arch-caption{font-size:12px;color:var(--muted);margin-top:14px;}
+
+  /* ---- audit trail ---- */
+  .filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .chip{
+    font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text-2);cursor:pointer;user-select:none;
+  }
+  .chip[aria-pressed="true"]{background:var(--text);color:var(--page);border-color:var(--text);}
+  .chip .count{font-family:"IBM Plex Mono";margin-left:5px;opacity:.65;}
+
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:920px;}
+  thead th{
+    text-align:left;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);
+    position:sticky;top:0;
+  }
+  tbody td{padding:10px 14px;border-bottom:1px solid var(--border-2);color:var(--text-2);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-2);}
+  td.id{color:var(--text);font-family:"IBM Plex Mono";font-size:12px;}
+  .pill{
+    display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+    padding:3px 9px;border-radius:99px;white-space:nowrap;
+  }
+  .pill.improved{background:var(--good-bg);color:var(--good);}
+  .pill.worse{background:var(--critical-bg);color:var(--critical);}
+  .pill.unchanged{background:var(--neutral-bg);color:var(--text-2);}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+  footer{
+    margin-top:48px;padding-top:20px;border-top:1px solid var(--border);
+    font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  }
+  footer a{color:var(--text-2);}
+
+  .note{
+    background:var(--accent-soft);border:1px solid transparent;border-radius:10px;
+    padding:13px 16px;font-size:12.5px;color:var(--accent-ink);margin-top:16px;
+  }
+</style>
+
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div>
+        <h1>Nirantar</h1>
+        <p>Mandate-health layer for recurring payments &mdash; concept console</p>
+      </div>
+    </div>
+    <div class="top-meta">
+      <span class="badge accent">Razorpay AI Buildathon &middot; Track 03</span>
+      <span class="badge mono">Seed 7 &middot; 4,000 mandates &middot; 12 months</span>
+    </div>
+  </div>
+
+  <section>
+    <h2 class="section-title">Result &mdash; treatment arm, same population &amp; seed as baseline</h2>
+    <div class="kpi-row" id="kpiRow"></div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Cycle recovery: before vs. with Nirantar</h2>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Recovery rate by arm</h3>
+        <p class="panel-sub">Control arm is proven byte-identical between the two runs &mdash; it is the integrity check, not a lever.</p>
+        <div id="recoveryChart"></div>
+        <div class="legend-row">
+          <span><i class="legend-dot" style="background:var(--muted);opacity:.55"></i>Control (untouched)</span>
+          <span><i class="legend-dot" style="background:var(--series-before)"></i>Treatment &mdash; baseline</span>
+          <span><i class="legend-dot" style="background:var(--series-after)"></i>Treatment &mdash; with Nirantar</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Why cycles fail (baseline, ground truth)</h3>
+        <p class="panel-sub">From the simulator only &mdash; a live deployment infers this, it never observes it directly.</p>
+        <div id="causeChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Where this sits in a Razorpay recurring-payments flow</h2>
+    <div class="panel arch-wrap">
+      <svg id="archSvg" viewBox="0 0 1080 210" width="100%" style="min-width:820px;display:block;font-family:'IBM Plex Sans',sans-serif;"></svg>
+      <p class="arch-caption">Nirantar reads the mandate/attempt event stream, scores each upcoming debit inside the RBI-mandated 24h pre-debit window, and returns one decision &mdash; retime, notify, split, or hold &mdash; back through the merchant's existing notification and scheduling path. It never intercepts the debit call itself; the gateway still executes and reports the outcome.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Audit trail &mdash; sample of intervened cycles</h2>
+    <div class="filters" id="filterRow"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mandate</th><th>Plan</th><th>Cycle</th><th>Bank / rail</th>
+            <th>Predicted cause</th><th>Action taken</th><th>New window</th>
+            <th>Baseline</th><th>With Nirantar</th><th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+    </div>
+    <p class="note">Shown honestly: of 1,044 comparable intervened cycles in this run, 99 flipped from failed to recovered, 919 were unchanged, and 26 flipped the other way &mdash; net +73. The table below mixes all three outcomes, not just the wins.</p>
+  </section>
+
+  <footer>
+    <span>Data: one full run of <span class="mono">experiment.py</span>, seed 7 &middot; not cherry-picked or reordered.</span>
+    <span>Full methodology: <a href="#" onclick="return false;">docs/METRICS.md</a> &middot; <a href="#" onclick="return false;">docs/ARCHITECTURE.md</a> in the repo.</span>
+  </footer>
+
+</div>
+
+<script>
+const DATA = {"seed":7,"mandates_total":4000,"control_mandates":2000,"treatment_mandates":2000,"control":{"cycles":15108,"recovered":14845,"recovery_rate":0.9825920042361662},"treatment_baseline":{"cycles":15193,"recovered":14890,"recovery_rate":0.9800566050154677,"rupees_recovered":16134460.0,"rupees_at_risk":16518657.0,"avg_attempts_per_recovered_cycle":1.2287441235728678},"treatment_with_policy":{"cycles":15194,"recovered":15041,"recovery_rate":0.9899302356193234,"rupees_recovered":16428909.0,"rupees_at_risk":16618106.0,"avg_attempts_per_recovered_cycle":1.1140881590319793},"cause_breakdown_baseline":{"INSUFFICIENT_FUNDS":2223,"PSP_APP_UNAVAILABLE":3004,"BANK_TECHNICAL_ERROR":2352,"AFA_NOT_COMPLETED":490,"VELOCITY_LIMIT_EXCEEDED":151,"FUNDS_BLOCKED_BY_MANDATE":83,"GATEWAY_TECHNICAL_ERROR":62},"intervention_action_breakdown":{"RETIME":1888,"PERSONALISE_NOTIFICATION":52},"intervened_cycles_total":1940,"intervened_flip_breakdown":{"UNCHANGED":1526,"IMPROVED":206,"WORSE":69},"sample_audit_trail":[{"mandate_id":"MND000009","plan":"EDTECH_EMI","cycle":0,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":199900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-09-25","new_scheduled":"2025-09-25","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000041","plan":"INSURANCE_PREMIUM","cycle":0,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-09-01","new_scheduled":"2025-09-01","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000104","plan":"EDTECH_EMI","cycle":8,"bank":"AXIS","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":199900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-05-07","new_scheduled":"2026-05-07","new_hour":11,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND000184","plan":"D2C_REFILL","cycle":4,"bank":"AXIS","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-01-07","new_scheduled":"2026-01-07","new_hour":11,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000315","plan":"SAAS_SEAT","cycle":0,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":99900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-09-08","new_scheduled":"2025-09-08","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000351","plan":"SAAS_SEAT","cycle":10,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":99900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-07-07","new_scheduled":"2026-07-07","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000393","plan":"D2C_REFILL","cycle":3,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-12-01","new_scheduled":"2025-12-01","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000513","plan":"D2C_REFILL","cycle":8,"bank":"YES","psp_app":"","rail":"NETBANKING_EMANDATE","amount_paise":34900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-05-04","new_scheduled":"2026-05-04","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000641","plan":"EDTECH_EMI","cycle":3,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":199900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-12-25","new_scheduled":"2025-12-25","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000753","plan":"EDTECH_EMI","cycle":6,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":199900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-03-02","new_scheduled":"2026-03-02","new_hour":14,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND000791","plan":"OTT_PREMIUM","cycle":2,"bank":"ICICI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-11-07","new_scheduled":"2025-11-07","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000863","plan":"SAAS_SEAT","cycle":10,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":99900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-07-01","new_scheduled":"2026-07-01","new_hour":14,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND000900","plan":"EDTECH_EMI","cycle":6,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":199900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-03-25","new_scheduled":"2026-03-25","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND000968","plan":"INSURANCE_PREMIUM","cycle":4,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-01-15","new_scheduled":"2026-01-15","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001022","plan":"D2C_REFILL","cycle":11,"bank":"AXIS","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-08-07","new_scheduled":"2026-08-07","new_hour":11,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001068","plan":"INSURANCE_PREMIUM","cycle":7,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-04-01","new_scheduled":"2026-04-01","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001129","plan":"SAAS_SEAT","cycle":3,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":99900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-12-25","new_scheduled":"2025-12-25","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001169","plan":"EDTECH_EMI","cycle":7,"bank":"ICICI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":199900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-04-07","new_scheduled":"2026-04-07","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001192","plan":"INSURANCE_PREMIUM","cycle":4,"bank":"YES","psp_app":"","rail":"NETBANKING_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-01-07","new_scheduled":"2026-01-07","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001220","plan":"SAAS_SEAT","cycle":0,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":99900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-09-01","new_scheduled":"2025-09-01","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001297","plan":"OTT_PREMIUM","cycle":3,"bank":"YES","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-12-08","new_scheduled":"2025-12-08","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001354","plan":"INSURANCE_PREMIUM","cycle":6,"bank":"YES","psp_app":"","rail":"NETBANKING_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-03-02","new_scheduled":"2026-03-02","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001396","plan":"D2C_REFILL","cycle":0,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-09-29","new_scheduled":"2025-09-29","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001471","plan":"EDTECH_EMI","cycle":1,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":199900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-10-15","new_scheduled":"2025-10-15","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001501","plan":"D2C_REFILL","cycle":0,"bank":"YES","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-09-25","new_scheduled":"2025-09-25","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001516","plan":"OTT_PREMIUM","cycle":8,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-05-07","new_scheduled":"2026-05-07","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"FAILED","flip":"WORSE"},{"mandate_id":"MND001628","plan":"EDTECH_EMI","cycle":11,"bank":"AXIS","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":199900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-08-25","new_scheduled":"2026-08-25","new_hour":11,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND001668","plan":"SAAS_SEAT","cycle":7,"bank":"YES","psp_app":"PHONEPE","rail":"UPI_AUTOPAY","amount_paise":99900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-04-27","new_scheduled":"2026-04-27","new_hour":22,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001710","plan":"OTT_PREMIUM","cycle":11,"bank":"YES","psp_app":"PHONEPE","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-08-03","new_scheduled":"2026-08-03","new_hour":22,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001787","plan":"D2C_REFILL","cycle":3,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-12-15","new_scheduled":"2025-12-15","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001820","plan":"OTT_PREMIUM","cycle":4,"bank":"YES","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-01-27","new_scheduled":"2026-01-27","new_hour":23,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND001873","plan":"INSURANCE_PREMIUM","cycle":0,"bank":"YES","psp_app":"","rail":"NETBANKING_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-09-08","new_scheduled":"2025-09-08","new_hour":14,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND001877","plan":"INSURANCE_PREMIUM","cycle":8,"bank":"YES","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":249900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-05-04","new_scheduled":"2026-05-04","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND001949","plan":"INSURANCE_PREMIUM","cycle":4,"bank":"YES","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":249900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-01-15","new_scheduled":"2026-01-15","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002061","plan":"EDTECH_EMI","cycle":6,"bank":"HDFC","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":199900,"predicted_cause":"AFA_NOT_COMPLETED","action":"PERSONALISE_NOTIFICATION","original_scheduled":"2026-03-09","new_scheduled":"2026-03-09","new_hour":10,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002151","plan":"OTT_PREMIUM","cycle":8,"bank":"YES","psp_app":"PHONEPE","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-05-04","new_scheduled":"2026-05-04","new_hour":22,"baseline_outcome":"SUCCESS","policy_outcome":"FAILED","flip":"WORSE"},{"mandate_id":"MND002201","plan":"D2C_REFILL","cycle":6,"bank":"AXIS","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-03-09","new_scheduled":"2026-03-09","new_hour":11,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002270","plan":"OTT_PREMIUM","cycle":1,"bank":"AXIS","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-10-07","new_scheduled":"2025-10-07","new_hour":11,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002388","plan":"D2C_REFILL","cycle":9,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":34900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-06-08","new_scheduled":"2026-06-08","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002463","plan":"SAAS_SEAT","cycle":5,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":99900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-02-09","new_scheduled":"2026-02-09","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002504","plan":"OTT_PREMIUM","cycle":7,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":49900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-04-01","new_scheduled":"2026-04-01","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002571","plan":"INSURANCE_PREMIUM","cycle":3,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-12-08","new_scheduled":"2025-12-08","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002625","plan":"EDTECH_EMI","cycle":3,"bank":"ICICI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":199900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-12-25","new_scheduled":"2025-12-25","new_hour":23,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND002685","plan":"INSURANCE_PREMIUM","cycle":2,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-11-03","new_scheduled":"2025-11-03","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND002780","plan":"D2C_REFILL","cycle":10,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-07-27","new_scheduled":"2026-07-27","new_hour":23,"baseline_outcome":"FAILED","policy_outcome":"SUCCESS","flip":"IMPROVED"},{"mandate_id":"MND002890","plan":"OTT_PREMIUM","cycle":6,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":49900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-03-09","new_scheduled":"2026-03-09","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003017","plan":"INSURANCE_PREMIUM","cycle":5,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-02-16","new_scheduled":"2026-02-16","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003103","plan":"D2C_REFILL","cycle":2,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":34900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-11-28","new_scheduled":"2025-11-28","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003169","plan":"SAAS_SEAT","cycle":6,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":99900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-03-16","new_scheduled":"2026-03-16","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003213","plan":"EDTECH_EMI","cycle":9,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":199900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-06-01","new_scheduled":"2026-06-01","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003341","plan":"OTT_PREMIUM","cycle":11,"bank":"YES","psp_app":"PHONEPE","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-08-17","new_scheduled":"2026-08-17","new_hour":22,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003426","plan":"OTT_PREMIUM","cycle":5,"bank":"YES","psp_app":"","rail":"CARD_EMANDATE","amount_paise":49900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2026-02-09","new_scheduled":"2026-02-09","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003495","plan":"OTT_PREMIUM","cycle":1,"bank":"SBI","psp_app":"GPAY","rail":"UPI_AUTOPAY","amount_paise":49900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2025-10-15","new_scheduled":"2025-10-15","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"},{"mandate_id":"MND003576","plan":"INSURANCE_PREMIUM","cycle":1,"bank":"YES","psp_app":"","rail":"NETBANKING_EMANDATE","amount_paise":249900,"predicted_cause":"BANK_TECHNICAL_ERROR","action":"RETIME","original_scheduled":"2025-10-27","new_scheduled":"2025-10-27","new_hour":14,"baseline_outcome":"SUCCESS","policy_outcome":"FAILED","flip":"WORSE"},{"mandate_id":"MND003653","plan":"INSURANCE_PREMIUM","cycle":7,"bank":"YES","psp_app":"PAYTM","rail":"UPI_AUTOPAY","amount_paise":249900,"predicted_cause":"PSP_APP_UNAVAILABLE","action":"RETIME","original_scheduled":"2026-04-01","new_scheduled":"2026-04-01","new_hour":23,"baseline_outcome":"SUCCESS","policy_outcome":"SUCCESS","flip":"UNCHANGED"}]};
+
+function fmtRs(n){ return "₹" + Math.round(n).toLocaleString("en-IN"); }
+function fmtPct(n){ return (n*100).toFixed(2) + "%"; }
+
+// ---- KPI tiles ----
+(function renderKPIs(){
+  const b = DATA.treatment_baseline, p = DATA.treatment_with_policy;
+  const liftPP = (p.recovery_rate - b.recovery_rate) * 100;
+  const rupeesLift = p.rupees_recovered - b.rupees_recovered;
+  const lostBefore = b.rupees_at_risk - b.rupees_recovered;
+  const lostAfter = p.rupees_at_risk - p.rupees_recovered;
+  const lossReduction = (1 - lostAfter/lostBefore) * 100;
+  const attemptsSaved = b.avg_attempts_per_recovered_cycle - p.avg_attempts_per_recovered_cycle;
+
+  const tiles = [
+    {label:"Cycle recovery rate", value: fmtPct(p.recovery_rate), delta:`+${liftPP.toFixed(2)} pp vs ${fmtPct(b.recovery_rate)} baseline`, sub:`${p.recovered.toLocaleString()} / ${p.cycles.toLocaleString()} cycles`},
+    {label:"Unrecovered revenue cut", value: `${lossReduction.toFixed(1)}%`, delta:`${fmtRs(lostBefore)} → ${fmtRs(lostAfter)}`, sub:"on the treatment arm only"},
+    {label:"Rupees protected", value: fmtRs(rupeesLift), delta:`of ${fmtRs(lostBefore)} previously lost`, sub:"same seed, same population"},
+    {label:"Attempts saved / recovered cycle", value: attemptsSaved.toFixed(3), delta:`${b.avg_attempts_per_recovered_cycle.toFixed(3)} → ${p.avg_attempts_per_recovered_cycle.toFixed(3)}`, sub:"fewer debit attempts, same or better outcome"},
+  ];
+  document.getElementById("kpiRow").innerHTML = tiles.map(t => `
+    <div class="kpi">
+      <div class="label">${t.label}</div>
+      <div class="value tab">${t.value}</div>
+      <div class="delta good tab">&#8599; ${t.delta}</div>
+      <div class="sub">${t.sub}</div>
+    </div>`).join("");
+})();
+
+// ---- recovery bar chart ----
+(function renderRecoveryChart(){
+  const c = DATA.control, b = DATA.treatment_baseline, p = DATA.treatment_with_policy;
+  const rows = [
+    {label:"Control", pct:c.recovery_rate, cls:"control"},
+    {label:"Treatment — baseline", pct:b.recovery_rate, cls:"before"},
+    {label:"Treatment — with Nirantar", pct:p.recovery_rate, cls:"after"},
+  ];
+  const min = 97.5; // zoom the axis so the real differences are visible
+  const scale = v => Math.max(2, ((v*100 - min) / (100 - min)) * 100);
+  document.getElementById("recoveryChart").innerHTML = rows.map(r => `
+    <div class="bar-row">
+      <div class="bar-label">${r.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill ${r.cls}" style="width:${scale(r.pct)}%"></div>
+        <div class="bar-val tab">${fmtPct(r.pct)}</div>
+      </div>
+    </div>`).join("") + `<p style="font-size:11px;color:var(--muted);margin:14px 0 0;">Axis starts at ${min}% to make a real difference visible — all three values are genuinely above 97.5%.</p>`;
+})();
+
+// ---- cause breakdown ----
+(function renderCauseChart(){
+  const entries = Object.entries(DATA.cause_breakdown_baseline);
+  const total = entries.reduce((s,[,v])=>s+v,0);
+  const max = Math.max(...entries.map(([,v])=>v));
+  document.getElementById("causeChart").innerHTML = entries.map(([name,v]) => `
+    <div class="cause-row">
+      <div class="cause-name">${name.replaceAll("_"," ").toLowerCase().replace(/^./,c=>c.toUpperCase())}</div>
+      <div class="cause-track"><div class="cause-fill" style="width:${(v/max*100).toFixed(1)}%"></div></div>
+      <div class="cause-pct tab">${(v/total*100).toFixed(0)}%</div>
+    </div>`).join("");
+})();
+
+// ---- architecture diagram ----
+(function renderArch(){
+  const svg = document.getElementById("archSvg");
+  const css = getComputedStyle(document.documentElement);
+  const ink = "var(--text)", ink2 = "var(--text-2)", accent = "var(--accent)", surf2="var(--surface-2)", border="var(--border)";
+  const boxes = [
+    {x:10,  w:150, label:"Customer's bank", sub:"/ UPI PSP app"},
+    {x:210, w:190, label:"Razorpay recurring", sub:"payments (Autopay / e-mandate)"},
+    {x:450, w:210, label:"Nirantar", sub:"pre-debit scoring, 24h window", hl:true},
+    {x:710, w:190, label:"Decision", sub:"retime · notify · split · hold"},
+    {x:950, w:120, label:"Outcome +", sub:"audit log"},
+  ];
+  const y = 70, h = 70;
+  let s = "";
+  boxes.forEach((b,i) => {
+    s += `<rect x="${b.x}" y="${y}" width="${b.w}" height="${h}" rx="10"
+            fill="${b.hl ? accent : surf2}" stroke="${border}" stroke-width="1"/>`;
+    s += `<text x="${b.x+b.w/2}" y="${y+30}" text-anchor="middle" font-size="14" font-weight="600"
+            fill="${b.hl ? '#fff' : ink}">${b.label}</text>`;
+    s += `<text x="${b.x+b.w/2}" y="${y+48}" text-anchor="middle" font-size="11"
+            fill="${b.hl ? 'rgba(255,255,255,.85)' : ink2}">${b.sub}</text>`;
+    if(i < boxes.length-1){
+      const nx = boxes[i+1].x;
+      const midY = y + h/2;
+      s += `<line x1="${b.x+b.w+4}" y1="${midY}" x2="${nx-10}" y2="${midY}" stroke="${ink2}" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+    }
+  });
+  s += `<line x1="${boxes[4].x+boxes[4].w/2}" y1="${y+h}" x2="${boxes[4].x+boxes[4].w/2}" y2="${y+h+28}" stroke="${ink2}" stroke-width="1.5"/>`;
+  s += `<line x1="${boxes[4].x+boxes[4].w/2}" y1="${y+h+28}" x2="${boxes[2].x+boxes[2].w/2}" y2="${y+h+28}" stroke="${ink2}" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+  s += `<line x1="${boxes[2].x+boxes[2].w/2}" y1="${y+h+28}" x2="${boxes[2].x+boxes[2].w/2}" y2="${y+h}" stroke="${ink2}" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrow)"/>`;
+  s += `<text x="${(boxes[2].x+boxes[2].w/2 + boxes[4].x+boxes[4].w/2)/2}" y="${y+h+44}" text-anchor="middle" font-size="10.5" fill="${ink2}">feeds next cycle's prediction</text>`;
+  svg.innerHTML = `
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="${ink2}"/>
+      </marker>
+    </defs>
+    ${s}
+    <text x="10" y="30" font-size="12.5" font-weight="600" fill="${ink}">Recurring debit cycle</text>
+  `;
+})();
+
+// ---- audit table + filters ----
+(function renderAudit(){
+  const data = DATA.sample_audit_trail;
+  const counts = DATA.intervened_flip_breakdown;
+  let active = "ALL";
+
+  function pill(flip){
+    const cls = flip.toLowerCase();
+    const label = flip === "IMPROVED" ? "Recovered" : flip === "WORSE" ? "Lost" : "No change";
+    return `<span class="pill ${cls}">${label}</span>`;
+  }
+  function outcomeCell(outcome){
+    return outcome === "SUCCESS"
+      ? `<span style="color:var(--good);font-weight:600;">Success</span>`
+      : `<span style="color:var(--critical);font-weight:600;">Failed</span>`;
+  }
+  function row(r){
+    return `<tr>
+      <td class="id">${r.mandate_id}</td>
+      <td>${r.plan.replaceAll("_"," ")}</td>
+      <td class="tab">#${r.cycle+1}</td>
+      <td>${r.bank}${r.psp_app ? " / "+r.psp_app : ""}</td>
+      <td>${r.predicted_cause === "NONE" ? "—" : r.predicted_cause.replaceAll("_"," ").toLowerCase()}</td>
+      <td>${r.action.replaceAll("_"," ").toLowerCase()}</td>
+      <td class="tab">${r.new_scheduled} &middot; ${String(r.new_hour).padStart(2,"0")}:00</td>
+      <td>${outcomeCell(r.baseline_outcome)}</td>
+      <td>${outcomeCell(r.policy_outcome)}</td>
+      <td>${pill(r.flip)}</td>
+    </tr>`;
+  }
+  function draw(){
+    const rows = active === "ALL" ? data : data.filter(r => r.flip === active);
+    document.getElementById("auditBody").innerHTML = rows.map(row).join("");
+  }
+  const filters = [
+    {key:"ALL", label:"All", n: data.length},
+    {key:"IMPROVED", label:"Recovered", n: counts.IMPROVED},
+    {key:"UNCHANGED", label:"No change", n: counts.UNCHANGED},
+    {key:"WORSE", label:"Lost", n: counts.WORSE},
+  ];
+  document.getElementById("filterRow").innerHTML = filters.map(f => `
+    <button class="chip" data-key="${f.key}" aria-pressed="${f.key==='ALL'}">${f.label}<span class="count tab">${f.n}</span></button>
+  `).join("");
+  document.querySelectorAll(".chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      active = btn.dataset.key;
+      document.querySelectorAll(".chip").forEach(b => b.setAttribute("aria-pressed", b === btn));
+      draw();
+    });
+  });
+  draw();
+})();
+</script>

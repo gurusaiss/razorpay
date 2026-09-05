@@ -19,28 +19,60 @@ data, and never a number without the run that produced it. See
 negative results found and fixed along the way rather than edited out.
 
 **Headline result** (one seed, 4,000 synthetic mandates, 12 months, see
-`docs/METRICS.md` for the full breakdown and the honest history behind it):
-cycle recovery rate on the treatment arm 98.82% → 99.36% (+0.54 percentage
-points), unrecovered revenue cut by 44.2%, control arm proven byte-identical
-between the baseline and with-policy runs.
+`docs/METRICS.md` for the full breakdown and the honest history behind it,
+including a third bug found and fixed after these numbers were already
+measured): cycle recovery rate on the treatment arm 98.01% → 98.99% (+0.99
+percentage points), unrecovered revenue cut by 50.8%, control arm proven
+byte-identical between the baseline and with-policy runs.
+
+## See it live
+
+- [Nirantar Console](https://claude.ai/code/artifact/621d4689-f58d-4b29-bfd4-9b56ff149978) — the portfolio-level result: KPIs, cause breakdown, a 52-row audit trail (wins and losses both shown, not cherry-picked).
+- [Reelio × Nirantar demo](https://claude.ai/code/artifact/68350144-1da1-477e-84f2-da6836eb58e7) — a fictional subscription brand's checkout, walking through exactly where Nirantar sits in a Razorpay recurring-payments integration, ending on one real recovered billing cycle.
+
+## Architecture (one glance)
+
+```
+ Customer bank/PSP        Razorpay recurring          Nirantar                     Decision
+ (UPI Autopay /      -->  payments (mandate     -->   pre-debit scoring     -->    RETIME /
+  e-mandate)               schedule + gateway)         (24h RBI window)            SWITCH_RAIL /
+                                 ^                            |                    SPLIT_AMOUNT /
+                                 |                            v                    NOTIFY / HOLD
+                                 +------ feeds next cycle's prediction ------------------+
+```
+The model layer only scores (a failure probability, a likely cause); every
+branch that turns a score into one of those five actions is plain,
+auditable Python matching a numbered rule in `docs/TAXONOMY.md` — never a
+prompt. Full module map, both design boundaries, and stated limitations
+(what this build can't yet do, and why) are in `docs/ARCHITECTURE.md`.
 
 ## Project layout
-
-See `docs/ARCHITECTURE.md` for the full module map and the two design
-boundaries (ground-truth vs. observable features; model-scores/policy-decides)
-everything else is built around. `docs/TAXONOMY.md` is the frozen contract
-(decline causes, mandate states, permitted actions) every module conforms to.
 
 ```
 docs/
   TAXONOMY.md      Frozen decline-cause taxonomy, state machine, action set.
   METRICS.md       Baseline numbers + the Phase 7 holdout experiment result.
-  ARCHITECTURE.md  Module map, design boundaries, stated limitations.
+  ARCHITECTURE.md  Module map, design boundaries, stated limitations,
+                   and other approaches considered but not built.
+  PANEL_PREP.md    Grounded answers to the questions a review panel is
+                   likely to ask, each traced to a real file or number.
+dashboard/         The two live demo pages linked above (self-contained HTML).
 src/nirantar/      All source (see docs/ARCHITECTURE.md for the module map).
 tests/             Regression tests -- run both before trusting any change.
+data/sample/       150-row sample of generate.py's output, for a first look
+                   without running anything. Full data is regenerated on
+                   demand (below), not committed -- it's fully deterministic
+                   from one command, seed and all.
+.env.example       The one optional environment variable this project reads.
 ```
 
 ## Quickstart
+
+Verified end-to-end from a completely clean clone: fresh `git clone`, a new
+`venv`, `pip install -r requirements.txt`, then every command below in
+order, with no other setup -- **1m41s total**, reproducing the numbers in
+`docs/METRICS.md` byte-for-byte (same seed, deterministic). No API keys,
+no database, no manual steps.
 
 ```bash
 pip install -r requirements.txt   # or: pip install scikit-learn pandas joblib numpy --break-system-packages
@@ -68,6 +100,29 @@ python -m nirantar.experiment --seed 7 --mandates 4000 --months 12
 python tests/test_rng_isolation.py
 python tests/test_policy_and_notify.py
 ```
+
+## Known limitations
+
+- `SWITCH_RAIL` is not actively selected — this build can't re-simulate a
+  mandate on a different rail, and shipping it anyway silently cost a retry
+  slot for no benefit (found via `experiment.py`, see the honest history in
+  `docs/METRICS.md`). Retired in favor of an hour-shifting `RETIME`, which
+  actually works against the outage cause it was meant to fix.
+- `SPLIT_AMOUNT` is likewise never selected — `simulate.py`/`environment.py`
+  have no partial-amount attempt mechanism, so activating it without that
+  would silently recreate the same no-op bug. Wired end-to-end
+  (`coordinate.py`, `notify.py`) but gated off in `policy.py` on purpose.
+- Four taxonomy causes (`MANDATE_REVOKED`, `PRE_DEBIT_OPT_OUT`,
+  `TOKEN_REISSUED`, `MANDATE_PAUSED`) never occur at the attempt level in
+  this synthetic build — they're modelled as mandate-state events instead.
+- One seed evaluated so far (`seed=7`); the determinism and holdout-integrity
+  checks are seed-independent, but the specific +0.54pp lift number is one
+  measured run, not yet a confidence interval across seeds.
+- The LLM notification path (`notify.py`) is untested against a real API
+  key in this environment — only its template fallback is exercised by the
+  test suite.
+
+Full detail on all of the above: `docs/ARCHITECTURE.md`.
 
 ## Status
 

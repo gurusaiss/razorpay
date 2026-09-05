@@ -83,10 +83,25 @@ order is a documented decision, not an implementation detail buried in code.
 5. `INSUFFICIENT_FUNDS` -> `RETIME` if a better window is predicted, else `PERSONALISE_NOTIFICATION`
 6. `VELOCITY_LIMIT_EXCEEDED` -> `RETIME` to next eligible window
 7. `FUNDS_BLOCKED_BY_MANDATE` -> `RETIME`
-8. `PSP_APP_UNAVAILABLE` / `BANK_TECHNICAL_ERROR` -> `SWITCH_RAIL` if available, else `RETIME` short window
-9. `GATEWAY_TECHNICAL_ERROR` -> `RETIME` short window
+8. `PSP_APP_UNAVAILABLE` / `BANK_TECHNICAL_ERROR` -> `RETIME`, shifted to an
+   empirically safer presentment **hour** for that (bank, PSP app) pair —
+   not `SWITCH_RAIL`. The original design here was `SWITCH_RAIL` if an
+   alternate rail exists, else `RETIME`; Phase 7 (`docs/METRICS.md`) found
+   this build cannot actually re-simulate a mandate on a different rail,
+   so `SWITCH_RAIL` was a no-op that still cost a retry slot. This is the
+   current frozen decision, not a stopgap: `docs/ARCHITECTURE.md`'s
+   known-limitations section has the full reasoning, and it applies to
+   both causes uniformly since `bank_psp_downtime` (the shared root cause)
+   is keyed on hour for either rail family.
+9. `GATEWAY_TECHNICAL_ERROR` -> `RETIME`, date-shifted to a better
+   liquidity window (this cause is not modelled as hour-keyed, unlike 8)
 10. `MANDATE_PAUSED` -> `PERSONALISE_NOTIFICATION`
 11. `UNCLASSIFIED` -> `HOLD`, flagged for manual review
+
+`SWITCH_RAIL` and `SPLIT_AMOUNT` remain in section 3's permitted-actions
+list as the intended design surface, but neither is currently selected by
+`policy.py` — see `docs/ARCHITECTURE.md`'s known-limitations section for
+exactly why each is gated off, and what would need to change to activate it.
 
 ## 5. Constants (frozen defaults, overridable in config.py)
 

@@ -14,8 +14,12 @@ from __future__ import annotations
 THRESHOLD_RETIME: float = 0.55
 
 # Calibrated probability of full-amount success below which SPLIT_AMOUNT
-# is considered (only relevant where partial collection is contractually
-# permitted, which the synthetic build treats as a per-mandate flag).
+# would be considered, if this build could execute it. Currently UNUSED:
+# policy.py never selects SPLIT_AMOUNT because environment.py/simulate.py
+# have no partial-amount attempt mechanism -- see docs/ARCHITECTURE.md's
+# "known, stated limitations" for why this is a documented gap, not a
+# hidden one (same class of issue as SWITCH_RAIL, caught by review instead
+# of by experiment.py this time).
 THRESHOLD_SPLIT: float = 0.35
 
 # Our engine's own maximum additional attempts per mandate per cycle, on

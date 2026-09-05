@@ -12,16 +12,19 @@ joined on attempt_id), using the exact same feature set as predict.py
 (features.py), with the same temporal holdout (cycles < 9 train, >= 9 test).
 
 Honesty note: this synthetic environment's attempt-level physics
-(environment.simulate_attempt) only ever produces six of the twelve causes
-in config.DECLINE_CAUSES -- MANDATE_REVOKED, PRE_DEBIT_OPT_OUT,
+(environment.simulate_attempt) only ever produces seven of the twelve
+causes in config.DECLINE_CAUSES -- MANDATE_REVOKED, PRE_DEBIT_OPT_OUT,
 TOKEN_REISSUED, and MANDATE_PAUSED are modelled as mandate-STATE events,
 not attempt-level failure causes, in this build. The classifier is trained
-on and can only output the six causes that actually occur in the data
+on and can only output the seven causes that actually occur in the data
 (config.DECLINE_CAUSES minus those four, plus never predicting
 UNCLASSIFIED since nothing in the synthetic world is unclassified by
 construction). A production classifier facing real data would need to
 handle all twelve, including a genuine UNCLASSIFIED residue -- this is a
 known, stated gap between the simulation and production, not a hidden one.
+(BANK_TECHNICAL_ERROR was dead code until a repo audit found and fixed it
+-- see docs/METRICS.md's third bug entry -- which is why this count is
+seven, not the six an earlier revision of this file claimed.)
 
 Usage:
     python -m nirantar.classify --data data/seed7_v1 --model-out models/classify_v1.joblib

@@ -1,0 +1,334 @@
+<title>Reelio × Nirantar Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    /* Reelio brand (consumer surface) */
+    --r-bg:      #17120f;
+    --r-surface: #1f1a16;
+    --r-surface2:#282019;
+    --r-text:    #f5efe8;
+    --r-text-2:  #c9b8a8;
+    --r-muted:   #8f7c6c;
+    --r-accent:  #ff7a45;
+    --r-accent-ink: #ffdac6;
+    --r-border:  rgba(245,239,232,0.12);
+
+    /* Nirantar brand (infra surface, same family as the Console) */
+    --n-bg:      #0d0d0d;
+    --n-surface: #15181c;
+    --n-surface2:#1b1e23;
+    --n-text:    #f4f4f2;
+    --n-text-2:  #c3c2b7;
+    --n-accent:  #35d6b8;
+    --n-accent-ink:#7ee9d5;
+    --n-good:    #35c452;
+    --n-critical:#e66767;
+    --n-border:  rgba(255,255,255,0.11);
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--r-bg); color:var(--r-text);
+    font-family:"Sora",system-ui,-apple-system,"Segoe UI",sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:"Fraunces",Georgia,serif;}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  .tab{font-variant-numeric:tabular-nums;}
+  a{color:inherit;}
+
+  /* ---- stepper shell ---- */
+  .shell{max-width:920px;margin:0 auto;padding:22px 22px 80px;}
+  .stepper{
+    display:flex;gap:6px;padding:6px;border-radius:12px;background:var(--r-surface);
+    border:1px solid var(--r-border);margin-bottom:28px;position:sticky;top:12px;z-index:10;
+    overflow-x:auto;
+  }
+  .step-btn{
+    flex:1;min-width:106px;text-align:center;padding:9px 8px;border-radius:9px;border:none;cursor:pointer;
+    background:transparent;color:var(--r-muted);font-family:"Sora";font-size:12px;font-weight:600;
+    display:flex;flex-direction:column;gap:2px;align-items:center;white-space:nowrap;
+  }
+  .step-btn .n{font-family:"IBM Plex Mono";font-size:10.5px;opacity:.7;}
+  .step-btn[aria-current="true"]{background:var(--r-accent);color:#1a0f08;}
+  .step-btn[aria-current="true"] .n{opacity:.7;}
+
+  .screen{display:none;}
+  .screen[aria-current="true"]{display:block;animation:fade .35s ease both;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .eyebrow{
+    font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--r-accent-ink);margin:0 0 8px;
+  }
+  h1.hero{font-size:clamp(28px,4vw,38px);margin:0 0 12px;text-wrap:balance;font-weight:600;}
+  p.lede{font-size:15.5px;color:var(--r-text-2);max-width:60ch;margin:0 0 26px;}
+
+  .nav-row{display:flex;justify-content:space-between;margin-top:32px;gap:12px;}
+  .btn{
+    font-family:"Sora";font-weight:600;font-size:13.5px;padding:11px 20px;border-radius:9px;border:1px solid var(--r-border);
+    background:var(--r-surface2);color:var(--r-text);cursor:pointer;
+  }
+  .btn.primary{background:var(--r-accent);color:#1a0f08;border-color:transparent;}
+  .btn:disabled{opacity:.35;cursor:default;}
+
+  /* ---- reelio storefront card ---- */
+  .plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px;}
+  .plan-card{
+    background:var(--r-surface);border:1px solid var(--r-border);border-radius:14px;padding:20px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .plan-card.selected{border-color:var(--r-accent);box-shadow:0 0 0 1px var(--r-accent) inset;}
+  .plan-name{font-family:"Fraunces";font-size:19px;}
+  .plan-price{font-size:26px;font-weight:600;}
+  .plan-price span{font-size:13px;color:var(--r-muted);font-weight:400;}
+  .plan-feat{font-size:12.5px;color:var(--r-text-2);}
+  .select-btn{
+    margin-top:auto;font-family:"Sora";font-weight:600;font-size:12.5px;padding:9px;border-radius:8px;
+    border:1px solid var(--r-border);background:transparent;color:var(--r-text);cursor:pointer;
+  }
+  .plan-card.selected .select-btn{background:var(--r-accent);color:#1a0f08;border-color:transparent;}
+
+  /* ---- checkout sheet (gateway concept) ---- */
+  .gateway-note{
+    font-size:11.5px;color:var(--r-muted);border:1px dashed var(--r-border);border-radius:8px;
+    padding:9px 12px;margin-bottom:18px;
+  }
+  .sheet{
+    background:#fff;color:#12151a;border-radius:16px;padding:24px;max-width:420px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  .sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .sheet-brand{font-weight:700;font-size:14px;letter-spacing:-.01em;}
+  .sheet-brand b{color:#2a78d6;}
+  .sheet-amount{font-size:12px;color:#6b7280;}
+  .sheet-row{display:flex;justify-content:space-between;font-size:13px;padding:10px 0;border-bottom:1px solid #eef0f2;}
+  .sheet-row b{font-weight:600;}
+  .method{
+    display:flex;align-items:center;gap:10px;padding:12px;border:1.5px solid #2a78d6;border-radius:10px;
+    margin:16px 0;background:#f2f7fd;font-size:13.5px;font-weight:600;
+  }
+  .method .dot{width:9px;height:9px;border-radius:50%;background:#2a78d6;}
+  .pin-row{display:flex;gap:8px;margin:14px 0;}
+  .pin-box{width:40px;height:46px;border:1.5px solid #d8dce1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#12151a;}
+  .sheet-cta{
+    width:100%;padding:13px;border-radius:10px;border:none;background:#2a78d6;color:#fff;font-weight:700;
+    font-family:"Sora";font-size:14px;cursor:pointer;margin-top:6px;
+  }
+  .sheet-fine{font-size:10.5px;color:#9aa1ab;text-align:center;margin-top:12px;}
+
+  .success-badge{
+    display:inline-flex;align-items:center;gap:8px;background:#e7f6e2;color:#1c7a1c;font-weight:700;
+    font-size:13px;padding:9px 14px;border-radius:99px;margin-bottom:18px;
+  }
+  .success-badge::before{content:"✓";}
+
+  /* ---- timeline ---- */
+  .timeline{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 16px;margin-bottom:8px;}
+  .tl-cell{
+    flex:none;width:92px;border-radius:10px;border:1px solid var(--r-border);background:var(--r-surface);
+    padding:12px 10px;text-align:center;cursor:pointer;
+  }
+  .tl-cell .m{font-size:11px;color:var(--r-muted);margin-bottom:6px;}
+  .tl-cell .s{font-size:11.5px;font-weight:600;color:var(--r-text-2);}
+  .tl-cell.flagged{border-color:var(--n-critical);background:rgba(230,103,103,.08);}
+  .tl-cell.flagged .s{color:var(--n-critical);}
+  .tl-cell.ok .s{color:#8fd18f;}
+
+  /* ---- nirantar interstitial card ---- */
+  .n-card{
+    background:var(--n-surface);border:1px solid var(--n-border);border-radius:16px;padding:24px;color:var(--n-text);
+    font-family:"Sora",sans-serif;
+  }
+  .n-tag{
+    display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--n-accent-ink);background:rgba(53,214,184,.12);padding:5px 11px;border-radius:99px;
+    margin-bottom:14px;
+  }
+  .n-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--n-accent);}
+  .risk-row{display:flex;align-items:baseline;gap:10px;margin:6px 0 16px;}
+  .risk-num{font-size:34px;font-weight:700;font-family:"IBM Plex Mono";color:var(--n-critical);}
+  .risk-sub{font-size:12.5px;color:var(--n-text-2);}
+  .fact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+  .fact{background:var(--n-surface2);border-radius:10px;padding:11px 13px;}
+  .fact .k{font-size:10.5px;color:var(--n-text-2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .fact .v{font-size:13.5px;font-weight:600;font-family:"IBM Plex Mono";}
+  .action-line{
+    display:flex;align-items:center;gap:10px;background:rgba(53,214,184,.1);border:1px solid rgba(53,214,184,.3);
+    border-radius:10px;padding:13px 15px;font-size:13px;
+  }
+  .action-line b{color:var(--n-accent-ink);}
+
+  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0;}
+  .compare-card{border-radius:14px;padding:18px;border:1px solid;}
+  .compare-card.without{border-color:rgba(230,103,103,.4);background:rgba(230,103,103,.06);}
+  .compare-card.with{border-color:rgba(53,214,184,.4);background:rgba(53,214,184,.06);}
+  .compare-title{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-bottom:10px;}
+  .compare-card.without .compare-title{color:var(--n-critical);}
+  .compare-card.with .compare-title{color:var(--n-accent-ink);}
+  .compare-step{font-size:12.5px;color:var(--n-text-2);padding:6px 0;border-bottom:1px dashed var(--n-border);}
+  .compare-step:last-child{border-bottom:none;}
+  .compare-result{margin-top:10px;font-size:14px;font-weight:700;}
+  .compare-card.without .compare-result{color:var(--n-critical);}
+  .compare-card.with .compare-result{color:var(--n-good);}
+
+  .link-out{
+    display:inline-block;margin-top:6px;font-size:13px;font-weight:600;color:var(--r-accent-ink);
+    border-bottom:1px solid var(--r-accent-ink);padding-bottom:1px;
+  }
+  .footnote{font-size:11.5px;color:var(--r-muted);margin-top:26px;border-top:1px solid var(--r-border);padding-top:16px;}
+</style>
+
+<div class="shell">
+  <div class="stepper" id="stepper"></div>
+
+  <!-- SCREEN 1: storefront -->
+  <section class="screen" data-step="0">
+    <p class="eyebrow">Reelio &middot; a fictional streaming brand, for this demo only</p>
+    <h1 class="hero display">Unlimited movies &amp; shows.<br>Cancel anytime.</h1>
+    <p class="lede">Priya is subscribing to Reelio Premium. This whole flow &mdash; and every number in it from here on &mdash; is what happens after she taps Subscribe, using Nirantar sitting behind a Razorpay recurring-payments integration.</p>
+    <div class="plan-grid">
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">₹149<span>/mo</span></div>
+        <div class="plan-feat">1 screen &middot; HD</div>
+        <button class="select-btn">Select</button>
+      </div>
+      <div class="plan-card selected">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">₹499<span>/mo</span></div>
+        <div class="plan-feat">4 screens &middot; 4K &middot; downloads</div>
+        <button class="select-btn">Selected</button>
+      </div>
+    </div>
+    <p class="gateway-note">Next: Priya authorizes a recurring UPI Autopay mandate for ₹499/month via a Razorpay-style checkout.</p>
+  </section>
+
+  <!-- SCREEN 2: checkout / mandate setup -->
+  <section class="screen" data-step="1">
+    <p class="eyebrow">Setting up the mandate</p>
+    <h1 class="hero display">Recurring payment checkout</h1>
+    <p class="lede">A concept mockup of a Razorpay Recurring Payments checkout &mdash; this is the real integration point: Nirantar reads the mandate this screen creates, it never touches the checkout itself.</p>
+    <div class="sheet">
+      <div class="sheet-top">
+        <div class="sheet-brand">Reelio <span style="color:#9aa1ab;font-weight:400;">via</span> <b>Razorpay</b></div>
+        <div class="sheet-amount">₹499.00 / month</div>
+      </div>
+      <div class="sheet-row"><span>Plan</span><b>Reelio Premium</b></div>
+      <div class="sheet-row"><span>First charge</span><b>Today</b></div>
+      <div class="sheet-row"><span>Recurring via</span><b>UPI Autopay</b></div>
+      <div class="method"><span class="dot"></span> UPI &mdash; priya@okhdfcbank</div>
+      <p style="font-size:12px;color:#6b7280;margin:14px 0 6px;">Enter UPI PIN to authorize the mandate</p>
+      <div class="pin-row">
+        <div class="pin-box">•</div><div class="pin-box">•</div><div class="pin-box">•</div><div class="pin-box">•</div>
+      </div>
+      <button class="sheet-cta">Authorize mandate</button>
+      <p class="sheet-fine">Secured &middot; RBI e-mandate framework &middot; cancel anytime</p>
+    </div>
+  </section>
+
+  <!-- SCREEN 3: mandate registered + timeline -->
+  <section class="screen" data-step="2">
+    <p class="eyebrow">Mandate active</p>
+    <span class="success-badge">Autopay mandate registered</span>
+    <h1 class="hero display">Twelve billing cycles later&hellip;</h1>
+    <p class="lede">Most months, the ₹499 debit just succeeds &mdash; that's true for 98.0% of cycles even with no help at all. Tap through Priya's billing calendar. One month is different.</p>
+    <div class="timeline" id="timeline"></div>
+    <p class="footnote">This calendar mirrors one real mandate from the experiment dataset (MND000090, YES Bank via Paytm) &mdash; not a scripted example.</p>
+  </section>
+
+  <!-- SCREEN 4: risk detected -->
+  <section class="screen" data-step="3">
+    <div class="n-card">
+      <span class="n-tag">Nirantar &middot; pre-debit scoring</span>
+      <div class="risk-row">
+        <div class="risk-num tab">HIGH RISK</div>
+        <div class="risk-sub">flagged above the RETIME threshold</div>
+      </div>
+      <p style="color:var(--n-text-2);font-size:13.5px;margin:-6px 0 18px;">25 Nov 2025, 24 hours before Priya's scheduled debit &mdash; before the gateway ever attempts it.</p>
+      <div class="fact-grid">
+        <div class="fact"><div class="k">Mandate</div><div class="v">MND000090</div></div>
+        <div class="fact"><div class="k">Bank / PSP</div><div class="v">YES Bank / Paytm</div></div>
+        <div class="fact"><div class="k">Predicted cause</div><div class="v">PSP app outage window</div></div>
+        <div class="fact"><div class="k">Scheduled hour</div><div class="v">10:00 (native default)</div></div>
+      </div>
+      <div class="action-line">Action: <b>RETIME</b> &mdash; move this attempt to <b>23:00</b>, an empirically safer hour for this bank/PSP pair &middot; personalised pre-debit notice sent to Priya.</div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card without">
+        <div class="compare-title">Without Nirantar</div>
+        <div class="compare-step">10:00 &mdash; debit attempt 1</div>
+        <div class="compare-step">PSP outage window &mdash; fails</div>
+        <div class="compare-step">Native retry, random hour</div>
+        <div class="compare-step">Same outage window &mdash; fails again</div>
+        <div class="compare-result">Cycle fails this month</div>
+      </div>
+      <div class="compare-card with">
+        <div class="compare-title">With Nirantar</div>
+        <div class="compare-step">Notice sent 24h ahead</div>
+        <div class="compare-step">Attempt retimed to 23:00</div>
+        <div class="compare-step">Outside the outage window</div>
+        <div class="compare-step">Debit succeeds, first attempt</div>
+        <div class="compare-result">₹499 recovered</div>
+      </div>
+    </div>
+    <p class="footnote">This is the real recorded outcome for this mandate&rsquo;s cycle &mdash; baseline_outcome=FAILED, policy_outcome=SUCCESS &mdash; from one full run of experiment.py, seed 7.</p>
+  </section>
+
+  <!-- SCREEN 5: dashboard handoff -->
+  <section class="screen" data-step="4">
+    <p class="eyebrow">What Reelio's finance team sees</p>
+    <h1 class="hero display">One customer, multiplied across the whole portfolio</h1>
+    <p class="lede">Priya's cycle is one row. Across Reelio's full 2,000-mandate treatment population in this same run: cycle recovery rose 98.01% → 98.99%, and unrecovered revenue fell 50.8%, measured against a control group that never saw Nirantar at all.</p>
+    <a class="link-out" href="https://claude.ai/code/artifact/621d4689-f58d-4b29-bfd4-9b56ff149978" target="_blank" rel="noopener">Open the full Nirantar Console →</a>
+    <p class="footnote">Nirantar Buildathon 2026 &middot; Track 03, AI Revenue Recovery. Reelio is a fictional brand created for this demo; the checkout screen is a concept mockup of a Razorpay Recurring Payments integration, not a live Razorpay embed. All performance numbers come from docs/METRICS.md in the project repo.</p>
+  </section>
+
+  <div class="nav-row">
+    <button class="btn" id="prevBtn">← Back</button>
+    <button class="btn primary" id="nextBtn">Continue →</button>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  {label:"Subscribe", n:"01"},
+  {label:"Autopay setup", n:"02"},
+  {label:"Billing timeline", n:"03"},
+  {label:"Risk & save", n:"04"},
+  {label:"Dashboard", n:"05"},
+];
+let current = 0;
+
+function renderStepper(){
+  document.getElementById("stepper").innerHTML = STEPS.map((s,i) => `
+    <button class="step-btn" data-i="${i}" aria-current="${i===current}">
+      <span class="n">${s.n}</span><span>${s.label}</span>
+    </button>`).join("");
+  document.querySelectorAll(".step-btn").forEach(b => b.addEventListener("click", () => goTo(+b.dataset.i)));
+}
+function goTo(i){
+  current = Math.max(0, Math.min(STEPS.length-1, i));
+  document.querySelectorAll(".screen").forEach(s => s.setAttribute("aria-current", s.dataset.step == current));
+  document.querySelectorAll(".step-btn").forEach(b => b.setAttribute("aria-current", +b.dataset.i === current));
+  document.getElementById("prevBtn").disabled = current === 0;
+  document.getElementById("nextBtn").textContent = current === STEPS.length-1 ? "Restart ↺" : "Continue →";
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+document.getElementById("prevBtn").addEventListener("click", () => goTo(current-1));
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if(current === STEPS.length-1){ goTo(0); } else { goTo(current+1); }
+});
+
+// timeline (real cycle data for MND000090)
+const MONTHS = ["Sep 25","Oct 25","Nov 25","Dec 25","Jan 26","Feb 26","Mar 26","Apr 26","May 26","Jun 26","Jul 26","Aug 26"];
+const FLAGGED_INDEX = 2; // Nov 25 -- the real flagged cycle
+document.getElementById("timeline").innerHTML = MONTHS.map((m,i) => `
+  <div class="tl-cell ${i===FLAGGED_INDEX ? 'flagged' : 'ok'}">
+    <div class="m">${m}</div>
+    <div class="s">${i===FLAGGED_INDEX ? 'Risk flagged' : '✓ Charged'}</div>
+  </div>`).join("");
+
+renderStepper();
+goTo(0);
+</script>

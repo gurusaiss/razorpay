@@ -30,15 +30,15 @@ determinism check).
 |---|---|
 | Mandates created | 4,000 |
 | Registered (post-dropoff) | 2,764 (dropoff 30.9%) |
-| Revoked during 12-month observation | 499 (18.1% of registered) |
-| Billing cycles attempted | 30,366 |
-| Billing cycles recovered (native T+1/T+2/T+3 retry) | 30,026 (98.9%) |
-| Rupees at risk | Rs 3,31,64,234.00 |
-| Rupees recovered | Rs 3,27,87,324.00 |
-| Rupees lost (unrecovered) | Rs 3,76,910.00 |
-| Attempts total | 36,095 |
-| Attempts failed | 16.8% |
-| Avg attempts per recovered cycle | 1.168 |
+| Revoked during 12-month observation | 506 (18.3% of registered) |
+| Billing cycles attempted | 30,301 |
+| Billing cycles recovered (native T+1/T+2/T+3 retry) | 29,735 (98.13%) |
+| Rupees at risk | Rs 3,30,39,549.00 |
+| Rupees recovered | Rs 3,23,21,865.00 |
+| Rupees lost (unrecovered) | Rs 7,17,684.00 |
+| Attempts total | 38,100 |
+| Attempts failed | 22.0% |
+| Avg attempts per recovered cycle | 1.224 |
 
 Decline cause breakdown (ground truth from the simulator — **not**
 observable in a real production system, which is exactly why
@@ -46,20 +46,27 @@ observable in a real production system, which is exactly why
 
 | Cause | Count | Share of failures |
 |---|---|---|
-| PSP_APP_UNAVAILABLE | 3,004 | 49.5% |
-| INSUFFICIENT_FUNDS | 2,253 | 37.1% |
-| AFA_NOT_COMPLETED | 508 | 8.4% |
-| VELOCITY_LIMIT_EXCEEDED | 151 | 2.5% |
-| FUNDS_BLOCKED_BY_MANDATE | 89 | 1.5% |
-| GATEWAY_TECHNICAL_ERROR | 64 | 1.1% |
+| PSP_APP_UNAVAILABLE | 3,004 | 35.9% |
+| BANK_TECHNICAL_ERROR | 2,352 | 28.1% |
+| INSUFFICIENT_FUNDS | 2,223 | 26.6% |
+| AFA_NOT_COMPLETED | 490 | 5.9% |
+| VELOCITY_LIMIT_EXCEEDED | 151 | 1.8% |
+| FUNDS_BLOCKED_BY_MANDATE | 83 | 1.0% |
+| GATEWAY_TECHNICAL_ERROR | 62 | 0.7% |
+
+`BANK_TECHNICAL_ERROR` appears in this table for the first time as of this
+revision — it was dead code in `environment.py` until a repo audit found
+it (see the third bug entry below). Its presence here, and its 100%
+precision/recall in `classify.py` immediately below, are direct evidence
+the fix worked, not just a code-review claim.
 
 ### Reading these numbers honestly
 
-98.9% of cycles already recover via native retry alone — this is expected
+98.1% of cycles already recover via native retry alone — this is expected
 and is not a flaw in the simulation. Recurring-debit failure in India is a
 long-tail problem: the vast majority of debits succeed on T+1 through T+3
 without any intervention. Nirantar's entire value case is in the remaining
-~1.1% of cycles (376 out of 30,366 in this run) that native retry alone
+~1.9% of cycles (566 out of 30,301 in this run) that native retry alone
 never recovers, plus reducing the *number of attempts* needed for cycles
 that do recover late (T+2/T+3 instead of T+1) — because every failed
 attempt has a cost: issuer-side authorization-rate degradation risk, retry
@@ -78,12 +85,22 @@ control-arm mandates' attempt records are asserted byte-identical between
 the two runs. They are — `experiment.py` exits with a hard failure if they
 are not, so this number is never silently skipped.
 
-| Metric (treatment arm, 2,000 mandates, 15,248 cycles) | Baseline | With policy | Lift |
+| Metric (treatment arm, 2,000 mandates, ~15,193 cycles) | Baseline | With policy | Lift |
 |---|---|---|---|
-| Cycle recovery rate | 98.8195% | 99.3619% | **+0.542 pp** |
-| Avg attempts / recovered cycle | 1.168 | 1.111 | **-0.057** (fewer attempts) |
-| Rupees recovered | Rs 1,64,37,432 | Rs 1,65,18,345 | **+Rs 80,913** |
-| Rupees lost (unrecovered) | Rs 1,90,670 | Rs 1,06,353 | **-44.2%** |
+| Cycle recovery rate | 98.0057% | 98.9930% | **+0.987 pp** |
+| Avg attempts / recovered cycle | 1.229 | 1.114 | **-0.115** (fewer attempts) |
+| Rupees recovered | Rs 1,61,34,460 | Rs 1,64,28,909 | **+Rs 2,94,449** |
+| Rupees lost (unrecovered, each arm's own ceiling) | Rs 3,84,197 | Rs 1,89,197 | **-50.8%** |
+
+(Treatment-arm cycle count differs by exactly one between the baseline and
+with-policy runs — 15,193 vs 15,194. An hour-shifting `RETIME` can move a
+first attempt across a calendar-month boundary for a mandate scheduled
+right at the edge of the 12-month window, which changes how many distinct
+cycles that one mandate contributes within the observation period. This is
+a real, explainable side effect of the intervention, not a data integrity
+problem — the control arm above is still proven byte-identical, and this
+is why the "rupees lost" comparison uses each arm's own total at-risk
+figure as its ceiling rather than assuming the two are identical.)
 
 ### Why the honest answer went through two negative results first
 
@@ -119,3 +136,37 @@ This progression — measure, find the real result is negative or zero,
 find the actual mechanical reason, fix the reason, remeasure — is the
 audit trail this track's own bar asks for, and is kept here rather than
 edited out.
+
+### A third bug, found after the numbers above already looked good
+
+The three previous bugs were all caught because they made the *measured
+lift* wrong — a strong forcing function. This one didn't: it was found by
+auditing `SPLIT_AMOUNT` (never selected by `policy.py`, see
+`docs/ARCHITECTURE.md`'s known-limitations section) for the same class of
+issue, which led to checking every other cause in `config.DECLINE_CAUSES`
+for whether it was actually reachable. `BANK_TECHNICAL_ERROR` was not:
+`environment.py`'s `downtime` flag — the thing that ever produces this
+cause — was gated to `rail == "UPI_AUTOPAY"` only, so the `else
+"BANK_TECHNICAL_ERROR"` branch immediately below it could never execute
+for any rail. An entire taxonomy cause was dead code, silently, with
+nothing in the previous run's numbers pointing at it.
+
+The fix: `downtime` is no longer gated to UPI Autopay. `bank_psp_downtime`
+is keyed on `(bank, psp_app, seed_key)`, and `psp_app` is already `""` for
+non-UPI rails, so the same function now models a bank-side outage window
+for card e-mandate and netbanking e-mandate too — a real, plausible cause
+(the bank's own e-NACH/card-emandate processing has an outage), not a
+hack to force a number up.
+
+Effect of the fix, same seed, full regeneration: `BANK_TECHNICAL_ERROR`
+now accounts for 28.1% of all decline causes (2,352 of 8,365 failures) and
+classifies at 100% precision/recall — immediately learnable once it
+existed in the data at all. The headline lift **improved** as a direct
+result — from +0.542pp to +0.987pp — because `policy.py` already had a
+correct `RETIME`/hour-shift branch for this exact cause (grouped with
+`PSP_APP_UNAVAILABLE` under the same `hour_outage` gate); it simply had
+nothing to act on before. This is stated as what it is: a bug fix that
+happened to help the number, found by auditing for silent gaps rather
+than by the number itself complaining — the opposite failure mode from
+the first two bugs, and worth naming so this file doesn't read as if
+every bug conveniently announces itself via a bad measurement.

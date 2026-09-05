@@ -204,6 +204,14 @@ def _cause_to_action(mandate: Mandate, cause: str, fail_prob: float,
     # taxonomy at all -- never guess, escalate via HOLD + notification.
     return "HOLD", None
 
+    # NOTE: SPLIT_AMOUNT is never returned by this function, on purpose.
+    # config.THRESHOLD_SPLIT exists and coordinate.py/notify.py are wired
+    # for it, but simulate.py/environment.py have no partial-amount
+    # attempt mechanism to execute it against -- selecting it here would
+    # silently recreate the SWITCH_RAIL no-op bug documented in
+    # docs/METRICS.md. See docs/ARCHITECTURE.md's known-limitations
+    # section before wiring a real gate in here.
+
 
 def make_policy_fn(models: PolicyModels):
     """Returns a closure matching simulate.PolicyFn's exact signature."""

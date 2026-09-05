@@ -149,6 +149,26 @@ experiment.py --seed 7 --mandates 4000 --months 12
   bug `experiment.py` caught and documents in `docs/METRICS.md`. A real
   implementation needs `environment.py` extended to model a genuine
   cross-rail retry before this action is safe to activate.
+- **SPLIT_AMOUNT is likewise never selected**, for the same class of
+  reason, caught by code review rather than by `experiment.py` this time
+  (it's a silent gap, not a measured one — worth stating exactly because
+  it wasn't forced into the open the way SWITCH_RAIL's was). The
+  *contractual* half of its gate is real, populated data:
+  `Mandate.partial_allowed` (from `environment.py`'s `PlanProfile` table
+  — `True` for `EDTECH_EMI` and `D2C_REFILL`, `False` for the other four
+  plans) flows all the way from `population.py` into every mandate
+  record, and `config.THRESHOLD_SPLIT` is defined for the probability
+  half. What's missing is the *execution* half: `simulate.py` and
+  `environment.py` have no mechanism to attempt a reduced amount — every
+  attempt runs at `mandate.amount_paise` in full, so there is no outcome
+  for "the smaller amount cleared" to feed back. `coordinate.py` and
+  `notify.py` are already wired for the action (it would suppress native
+  retry, and has a template remedy line), so it activates cleanly once
+  `environment.py` gains a partial-amount attempt outcome and
+  `_cause_to_action()` reads `mandate.partial_allowed` alongside
+  `THRESHOLD_SPLIT` — but shipping the selection today, without that
+  execution semantics behind it, would recreate the exact SWITCH_RAIL
+  no-op bug on purpose, so `policy.py` deliberately does not.
 - **Four taxonomy causes never occur at the attempt level in this build**:
   `MANDATE_REVOKED`, `PRE_DEBIT_OPT_OUT`, `TOKEN_REISSUED`, `MANDATE_PAUSED`
   are modelled as mandate-*state* events here, not attempt failure causes —
@@ -165,3 +185,61 @@ experiment.py --seed 7 --mandates 4000 --months 12
   this environment (no key configured); the fallback path
   (`template_fallback`) is what's actually exercised by
   `tests/test_policy_and_notify.py`.
+
+## Other approaches considered (and deliberately not built)
+
+Track 3's own application guide lists three example angles: a payment-
+failure recovery agent (this build), a checkout-abandonment recovery
+system, and a B2B receivables chaser. These are three *alternative*
+pitches for the same track, not a checklist — the guide's own scope
+advice is explicit ("scope down, not up... a narrow, working system beats
+an ambitious, half-built one every time"). This project picked the first
+angle and built it completely rather than all three shallowly. What
+follows is a real design sketch for the other two, specifically so that
+"have you considered other approaches" has an honest, concrete answer —
+not a claim that they're built.
+
+Both of the other angles would reuse this project's actual architecture,
+not a different one: a closed cause taxonomy (`docs/TAXONOMY.md`-shaped),
+a model that only *scores* (probability + likely cause) feeding a
+deterministic policy that only *decides* (never the reverse), a
+coordination rule so a new workflow's own schedule replaces rather than
+stacks on whatever escalation already exists, and a same-population
+control-group measurement before any recovery number is trusted
+(`experiment.py`-shaped). That reuse is the actual argument for why this
+system generalizes, rather than being one narrow trick — but reuse of a
+*pattern* is not the same as having built it, and the two need genuinely
+different ground-truth models to be honestly measurable:
+
+**Checkout-abandonment recovery** needs a session/cart-level ground truth
+(drop-off point, time-to-abandon, channel reachability) that this
+project's mandate/cycle model doesn't have at all — `environment.py`
+would need an entirely new physics model for browsing/checkout sessions,
+not an extension of the existing one. The recovery *actions* (personalised
+email/SMS/WhatsApp nudge, timed by drop-off point) map cleanly onto the
+same "detect → diagnose → decide → execute → verify" loop and the same
+"policy decides, model only scores" boundary, but the detection surface
+(what counts as an abandoned session, what's observable about *why*) is
+different enough that it is genuinely a second project, not a flag on
+this one.
+
+**B2B receivables chasing** is architecturally closer to what already
+exists: overdue-invoice age plays the role `fail_prob` plays here, and an
+escalating collection ladder (gentle reminder → firm follow-up →
+escalation notice) is a natural generalisation of `notify.py`'s existing
+cause-to-remedy template mapping, with `coordinate.py`'s "replace, don't
+stack" rule directly applicable to not sending both an automated reminder
+and a human collections call on the same day. What it would newly need:
+invoice-level ground truth (payment terms, dispute status, customer
+payment history) and its own held-out measurement — "days-to-collect
+reduced by X%, compliant escalation ladder, audit trail" — run with the
+same rigor `experiment.py` applies here, not asserted without a control
+group.
+
+Neither was started in the time available before this submission. Doing
+either properly needs its own synthetic ground truth and its own honest,
+measured evaluation — attempting both today, on top of an already-complete
+and tested submission, with no time left to validate the result, is
+exactly the "broken ambitious scope" failure mode the buildathon's own
+guide warns against. Both are listed as concrete future work in
+`docs/PANEL_PREP.md`'s answer to "what would you build next."
