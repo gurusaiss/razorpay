@@ -1,0 +1,167 @@
+# Architecture
+
+Nirantar is a processor-agnostic "mandate health" layer for Indian recurring
+payments (UPI Autopay, card e-mandate, netbanking e-mandate). It predicts a
+recurring-debit failure BEFORE the attempt fires, using the RBI-mandated
+24-hour pre-debit notification window as the actual intervention surface,
+and it replaces native gateway retry rather than stacking on top of it.
+
+## Why this exists (the one-line pitch)
+
+Every recovery vendor in this space publishes a headline recovery
+percentage after the fact. Independent audits routinely find the real
+number well below the headline. Nirantar's answer to that is not a better
+headline number — it's to never claim one without a same-population,
+same-seed control group next to it (`experiment.py`, `docs/METRICS.md`).
+
+## Module map
+
+```
+config.py         Frozen thresholds and closed taxonomies. Nothing else
+                   hardcodes a number that belongs here.
+
+environment.py     The simulator's ground-truth "physics" (liquidity
+                   curves, bank/PSP outage windows, AFA risk). NEVER
+                   imported by predict.py, classify.py, or policy.py.
+
+population.py      Mandate creation + control/treatment arm assignment
+                   (stable hash of mandate_id, independent of whether a
+                   policy is applied in a given run).
+
+simulate.py         The cycle loop. Shared by the baseline (policy_fn=None)
+                   and treatment (policy_fn=<engine>) runs -- this is what
+                   makes the two runs comparable at all.
+
+generate.py         CLI: produces the baseline dataset (mandates.csv,
+                   attempts.csv, labels.csv, registration_failures.csv).
+
+baseline.py         Summarises a dataset: funnel, rupees at risk/recovered,
+                   attempts/recovered-cycle, decline-cause breakdown.
+                   Fixed BEFORE any model code -- "build the baseline
+                   before the model."
+
+features.py         The pre-debit feature boundary. Documents exactly what
+                   a real production system could know before an attempt,
+                   and what it explicitly cannot (true_cause, outcome,
+                   hour for a first attempt, the exact ground-truth outage
+                   function -- only an empirical proxy of it).
+
+predict.py           Calibrated (isotonic) logistic regression: P(first
+                   attempt of a cycle fails). Temporal holdout (train on
+                   early cycles, evaluate on later ones), reported via
+                   ROC-AUC, Brier score, and a reliability table --
+                   because config.THRESHOLD_RETIME/THRESHOLD_SPLIT are
+                   absolute probability thresholds that only mean
+                   something if the model is calibrated, not just ranked.
+
+classify.py          Multiclass classifier: most likely decline cause,
+                   conditional on failure. Same feature boundary, same
+                   temporal holdout. Documents which taxonomy causes this
+                   synthetic build's physics never generates at the
+                   attempt level (a stated gap, not a hidden one).
+
+artifacts.py          Reference tables built ONLY from the training split:
+                   empirical bank/PSP failure rates, a rail catalog per
+                   plan, and an empirical best-presentment-hour per
+                   (bank, PSP app) -- the last of which is what makes an
+                   hour-shifting RETIME a real lever against a bank/PSP
+                   outage window, discovered necessary via experiment.py
+                   (see docs/METRICS.md).
+
+heuristics.py          Policy-side domain heuristics (a "good liquidity
+                   window" for RETIME's date axis). Deliberately does NOT
+                   import environment.py -- it is independently derived
+                   domain knowledge, not the ground-truth formula under a
+                   different name.
+
+coordinate.py          The single "replace, don't stack" rule: which
+                   actions suppress native T+1/T+2/T+3 retry (RETIME,
+                   SWITCH_RAIL, SPLIT_AMOUNT) vs which leave it alone
+                   (PERSONALISE_NOTIFICATION, HOLD). Raises on any
+                   action it hasn't been told how to classify.
+
+policy.py               The decision engine. Economic-floor and notify-
+                   floor gates, then predict.py's probability + classify.py's
+                   cause feed the fixed cause -> action table in
+                   docs/TAXONOMY.md section 4. The model layer only
+                   SCORES; every branch that turns a score into an action
+                   is plain deterministic code.
+
+notify.py               The pre-debit notification composer. Mandatory
+                   fields (amount, date, mandate reference) are always
+                   rendered directly, never generated by a model; an
+                   optional LLM composes only the free-text explanation,
+                   and its output is checked post-hoc to confirm the
+                   mandatory fields still appear verbatim before use.
+
+experiment.py           Phase 7: the holdout measurement. Same population,
+                   same seed, policy_fn=None vs the real policy engine.
+                   Hard-fails if the control arm isn't byte-identical
+                   between the two runs before reporting any lift number.
+```
+
+## The two boundaries the whole design is organised around
+
+**1. Ground truth vs. observable features.** `environment.py` is the only
+module that knows *why* an attempt actually fails. Every other module
+(`predict.py`, `classify.py`, `policy.py`) only sees what a real production
+system could plausibly know: mandate attributes, calendar features, and
+empirical historical rates computed from a training split. This boundary
+is enforced by convention (a documented import rule) rather than by a
+runtime sandbox, because the goal is design discipline, not a security
+control — but it is checked in code review terms every time a new feature
+is added to `features.py`.
+
+**2. The model scores, policy decides.** `predict.py` and `classify.py`
+never take an action. They output a probability and a most-likely-cause.
+`policy.py` is the only module that turns those into one of
+`config.PERMITTED_ACTIONS`, and every branch in it is deterministic,
+auditable Python matching a numbered rule in `docs/TAXONOMY.md` section 4
+— not a prompt, not a model call. The same principle extends to
+`notify.py`: an LLM may compose free text, but never the mandatory fields.
+
+## Data flow (a single experiment run)
+
+```
+generate.py --seed 7 --mandates 4000 --months 12 --out data/seed7_v1
+        |
+        v
+baseline.py --data data/seed7_v1        (fixed reference numbers)
+        |
+        v
+predict.py  --data data/seed7_v1 --model-out models/predict_v1.joblib
+classify.py --data data/seed7_v1 --model-out models/classify_v1.joblib
+artifacts.py --data data/seed7_v1 --out models/artifacts_v1.json
+        |         (all three trained/built on cycles < 9 only)
+        v
+experiment.py --seed 7 --mandates 4000 --months 12
+        (regenerates the SAME population twice: policy_fn=None vs
+         make_policy_fn(loaded models) -- reports lift, gated on the
+         control arm being byte-identical between the two runs)
+```
+
+## Known, stated limitations (not hidden gaps)
+
+- **SWITCH_RAIL is not actively selected.** This synthetic build cannot
+  re-simulate a mandate on a different rail (`Mandate.rail` is fixed at
+  creation), so `policy.py` does not select it — using it while suppressing
+  native retry would spend a retry slot on a no-op, which is exactly the
+  bug `experiment.py` caught and documents in `docs/METRICS.md`. A real
+  implementation needs `environment.py` extended to model a genuine
+  cross-rail retry before this action is safe to activate.
+- **Four taxonomy causes never occur at the attempt level in this build**:
+  `MANDATE_REVOKED`, `PRE_DEBIT_OPT_OUT`, `TOKEN_REISSUED`, `MANDATE_PAUSED`
+  are modelled as mandate-*state* events here, not attempt failure causes —
+  `classify.py`'s docstring states this; the classifier cannot be evaluated
+  against causes the simulator never generates.
+- **Single synthetic seed evaluated so far** (`seed=7`). The determinism
+  and holdout-integrity checks (`tests/test_rng_isolation.py`,
+  `experiment.py`'s integrity gate) are seed-independent guarantees, but
+  the specific lift number in `docs/METRICS.md` should be read as one
+  measured run, not yet a confidence interval across seeds — a natural
+  next step before quoting the number in a pitch as more than a
+  demonstration.
+- **The LLM notification path is untested against a real API key** in
+  this environment (no key configured); the fallback path
+  (`template_fallback`) is what's actually exercised by
+  `tests/test_policy_and_notify.py`.
