@@ -176,6 +176,19 @@
     border-bottom:1px solid var(--r-accent-ink);padding-bottom:1px;
   }
   .footnote{font-size:11.5px;color:var(--r-muted);margin-top:26px;border-top:1px solid var(--r-border);padding-top:16px;}
+
+  /* ---- Priya avatar, human touch ---- */
+  .who-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .avatar{
+    width:34px;height:34px;border-radius:50%;flex:none;background:var(--r-surface2);
+    border:1.5px solid var(--r-accent);display:flex;align-items:center;justify-content:center;
+    font-family:"Fraunces";font-style:italic;font-weight:600;font-size:15px;color:var(--r-accent-ink);
+  }
+  .who-name{font-size:13px;color:var(--r-text-2);}
+  .who-name b{color:var(--r-text);}
+
+  .scribble{display:block;margin:2px 0 0;height:7px;width:120px;}
+  .scribble path{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;}
 </style>
 
 <div class="shell">
@@ -185,7 +198,11 @@
   <section class="screen" data-step="0">
     <p class="eyebrow">Reelio &middot; a fictional streaming brand, for this demo only</p>
     <h1 class="hero display">Unlimited movies &amp; shows.<br>Cancel anytime.</h1>
-    <p class="lede">Priya is subscribing to Reelio Premium. This whole flow &mdash; and every number in it from here on &mdash; is what happens after she taps Subscribe, using Nirantar sitting behind a Razorpay recurring-payments integration.</p>
+    <div class="who-row">
+      <div class="avatar">P</div>
+      <div class="who-name"><b>Priya</b> &middot; subscribing to Reelio Premium today</div>
+    </div>
+    <p class="lede">This whole flow &mdash; and every number in it from here on &mdash; is what happens after she taps Subscribe, using Nirantar sitting behind a Razorpay recurring-payments integration.</p>
     <div class="plan-grid">
       <div class="plan-card">
         <div class="plan-name">Basic</div>
@@ -270,6 +287,7 @@
         <div class="compare-step">Outside the outage window</div>
         <div class="compare-step">Debit succeeds, first attempt</div>
         <div class="compare-result">₹499 recovered</div>
+        <svg class="scribble" style="color:var(--n-good)" viewBox="0 0 100 8" preserveAspectRatio="none"><path d="M1,5 Q15,1 30,5 T60,5 T99,4"/></svg>
       </div>
     </div>
     <p class="footnote">This is the real recorded outcome for this mandate&rsquo;s cycle &mdash; baseline_outcome=FAILED, policy_outcome=SUCCESS &mdash; from one full run of experiment.py, seed 7.</p>

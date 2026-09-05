@@ -8,6 +8,11 @@ gateway retry rather than stacking another retry schedule on top of it.
 
 Built for the Razorpay AI Buildathon 2026, Track 03 (AI Revenue Recovery).
 
+**At a glance:** solo build · Python 3.12 · scikit-learn + pandas for the
+ML layer · plain HTML/CSS/JS for both dashboards · no paid infra, no
+database, no API keys required · fully reproducible from one seeded
+command · full run end-to-end in under 2 minutes from a clean clone.
+
 ## Why
 
 Recovery vendors in this space publish headline recovery percentages;
@@ -29,6 +34,29 @@ byte-identical between the baseline and with-policy runs.
 
 - [Nirantar Console](https://claude.ai/code/artifact/621d4689-f58d-4b29-bfd4-9b56ff149978) — the portfolio-level result: KPIs, cause breakdown, a 52-row audit trail (wins and losses both shown, not cherry-picked).
 - [Reelio × Nirantar demo](https://claude.ai/code/artifact/68350144-1da1-477e-84f2-da6836eb58e7) — a fictional subscription brand's checkout, walking through exactly where Nirantar sits in a Razorpay recurring-payments integration, ending on one real recovered billing cycle.
+
+## Tech stack
+
+- **Language:** Python 3.12 (standard library + `random.Random` for all
+  seeded, reproducible randomness — no hidden global RNG state).
+- **ML:** `scikit-learn` (`LogisticRegression` + `CalibratedClassifierCV`
+  with isotonic calibration for failure-probability prediction,
+  `RandomForestClassifier` for decline-cause classification), `pandas` and
+  `numpy` for feature frames, `joblib` for model persistence.
+- **Policy/decision layer:** plain Python — no framework, no prompt, no
+  model call. Every action is a deterministic branch matching a numbered
+  rule in `docs/TAXONOMY.md`.
+- **Optional LLM:** used only for the notification's free-text
+  explanation (never the mandatory fields), with a template fallback if
+  no API key is configured — see `src/nirantar/notify.py`.
+- **Dashboards:** self-contained HTML/CSS/vanilla JS, no build step, no
+  framework, no external backend — the data is embedded directly from one
+  real `experiment.py` run.
+- **Testing:** Python's own `assert`-based scripts (`tests/`), no test
+  framework dependency — runnable with a plain `python tests/<file>.py`.
+- **Infra:** none required. No database, no message queue, no paid API,
+  no cloud service — the entire pipeline runs on a laptop from one
+  `pip install`.
 
 ## Architecture (one glance)
 
